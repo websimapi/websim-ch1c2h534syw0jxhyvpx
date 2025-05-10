@@ -159,7 +159,7 @@ function setupEventListeners() {
     // Clone button click
     elements.cloneButton.addEventListener('click', async () => {
         const text = elements.cloneTextInput.value.trim();
-        if (text && state.recordedBlob) {
+        if (text && elements.sampleAudio.src) {
             await cloneVoice(text);
         }
     });
@@ -328,31 +328,26 @@ async function cloneVoice(text) {
         elements.cloneButton.disabled = true;
         elements.cloneButton.textContent = 'Generating...';
 
-        // Convert Blob to File
-        const sampleFile = new File([state.recordedBlob], 'voice_sample.wav', {
-            type: 'audio/wav'
-        });
+        // Get the audio source from either recorded or uploaded audio
+        const audioSource = elements.sampleAudio.src;
 
-        // Create a temporary URL for the sample file
-        const sampleURL = URL.createObjectURL(sampleFile);
-
-        // Call TTS with voice sample
+        // Call the websim TTS API with the voice sample
         const result = await websim.textToSpeech({
             text: text,
-            voice_sample: sampleURL
+            voice_sample: audioSource
         });
 
-        // Display the result
+        // Update the audio element with the cloned speech
         elements.cloneAudio.src = result.url;
         elements.cloneResult.classList.remove('hidden');
         elements.cloneAudio.play();
 
     } catch (error) {
-        console.error('Error cloning voice:', error);
-        alert('Failed to clone voice. Please try again.');
+        console.error('Error generating cloned speech:', error);
+        alert('An error occurred while generating cloned speech. Please try again.');
     } finally {
-        elements.cloneButton.disabled = false;
         elements.cloneButton.textContent = 'Generate Cloned Speech';
+        elements.cloneButton.disabled = false;
     }
 }
 
@@ -416,6 +411,9 @@ function setupVoiceCloningDemo() {
                     elements.cloneButton.disabled = false;
                     elements.recordButton.textContent = 'Record Sample (5s)';
                     elements.recordButton.classList.remove('recording');
+
+                    // Hide the cloning result if it was previously shown
+                    elements.cloneResult.classList.add('hidden');
                 });
 
                 state.audioRecorder.start();
@@ -446,6 +444,135 @@ function setupVoiceCloningDemo() {
             alert('Unable to access your microphone. Please check your permissions.');
         }
     });
+}
+
+// Initialize the app when the document is loaded
+document.addEventListener('DOMContentLoaded', function () {
+    // Get all the DOM elements we need
+    const elements = {
+        // Tab elements
+        tabButtons: document.querySelectorAll('.tab-button'),
+        tabContents: document.querySelectorAll('.tab-content'),
+
+        // Record tab elements
+        recordButton: document.getElementById('record-button'),
+        recordingTimer: document.getElementById('recording-timer'),
+        timerSpan: document.querySelector('#recording-timer span'),
+
+        // Upload tab elements
+        audioFileInput: document.getElementById('audio-file-input'),
+        fileNameDisplay: document.getElementById('file-name-display'),
+        fileNameSpan: document.querySelector('#file-name-display span'),
+
+        // Common elements
+        sampleContainer: document.getElementById('sample-container'),
+        sampleAudio: document.getElementById('sample-audio'),
+        cloneTextInput: document.getElementById('clone-text-input'),
+        cloneButton: document.getElementById('clone-button'),
+        cloneResult: document.getElementById('clone-result'),
+        cloneAudio: document.getElementById('clone-audio')
+    };
+
+    // Recording variables
+    let audioRecorder;
+    let audioChunks = [];
+    let audioBlob = null;
+    let recordingTime = 5; // 5 seconds recording
+    let countdownInterval;
+
+    // Tab switching functionality
+    elements.tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            // Remove active class from all buttons and contents
+            elements.tabButtons.forEach(btn => btn.classList.remove('active'));
+            elements.tabContents.forEach(content => content.classList.remove('active'));
+
+            // Add active class to current button and content
+            button.classList.add('active');
+            const tabId = button.getAttribute('data-tab') + '-tab';
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+
+    // File upload handler
+    elements.audioFileInput.addEventListener('change', function (e) {
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+            elements.fileNameSpan.textContent = file.name;
+            elements.fileNameDisplay.classList.remove('hidden');
+
+            // Create a blob URL for the file
+            const fileReader = new FileReader();
+            fileReader.onload = function (e) {
+                audioBlob = new Blob([e.target.result], { type: file.type });
+                const audioURL = URL.createObjectURL(audioBlob);
+                elements.sampleAudio.src = audioURL;
+
+                // Show the sample playback and enable clone button
+                elements.sampleContainer.classList.remove('hidden');
+                elements.cloneButton.disabled = false;
+
+                // Hide the cloning result if it was previously shown
+                elements.cloneResult.classList.add('hidden');
+            };
+            fileReader.readAsArrayBuffer(file);
+        }
+    });
+
+    // Record button handler
+    elements.recordButton.addEventListener('click', async function () {
+        try {
+            if (elements.recordButton.textContent === 'Record Sample (5s)') {
+                // Start recording
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                audioRecorder.addEventListener('dataavailable', event => {
+                    audioChunks.push(event.data);
+                });
+
+                audioRecorder.addEventListener('stop', () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    elements.sampleAudio.src = audioUrl;
+                    elements.sampleContainer.classList.remove('hidden');
+                    elements.cloneButton.disabled = false;
+                    elements.recordButton.textContent = 'Record Sample (5s)';
+                    elements.recordButton.classList.remove('recording');
+
+                    // Hide the cloning result if it was previously shown
+                    elements.cloneResult.classList.add('hidden');
+                });
+
+                audioRecorder.start();
+                elements.recordButton.textContent = 'Recording...';
+                elements.recordButton.classList.add('recording');
+                elements.recordingTimer.classList.remove('hidden');
+
+                // Start the countdown
+                let timeLeft = recordingTime;
+                elements.timerSpan.textContent = timeLeft;
+
+                countdownInterval = setInterval(() => {
+                    timeLeft--;
+                    elements.timerSpan.textContent = timeLeft;
+
+                    if (timeLeft <= 0) {
+                        clearInterval(countdownInterval);
+                        audioRecorder.stop();
+                        elements.recordingTimer.classList.add('hidden');
+
+                        // Stop the tracks of the stream
+                        stream.getTracks().forEach(track => track.stop());
+                    }
+                }, 1000);
+            }
+        } catch (err) {
+            console.error('Error accessing microphone:', err);
+            alert('Unable to access your microphone. Please check your permissions.');
+        }
+    });
 
     // Clone button handler
     elements.cloneButton.addEventListener('click', async function () {
@@ -460,26 +587,49 @@ function setupVoiceCloningDemo() {
         elements.cloneButton.textContent = 'Generating...';
 
         try {
-            // Here we would normally make an API call to a voice cloning service
-            // For demo purposes, we'll simulate the process with a timeout
-            setTimeout(() => {
-                // For a real implementation, replace this with actual API call results
-                const demoAudioUrl = 'https://example.com/dummy-cloned-voice.mp3';
-                // For now, we'll just replay the original sample as a placeholder
-                elements.cloneAudio.src = elements.sampleAudio.src;
+            // Create a temporary audio file from the blob
+            if (!audioBlob) {
+                throw new Error('No audio sample available');
+            }
 
-                elements.cloneResult.classList.remove('hidden');
-                elements.cloneButton.textContent = 'Generate Cloned Speech';
-                elements.cloneButton.disabled = false;
-            }, 2000);
+            // Convert the blob to a data URL
+            const reader = new FileReader();
+            reader.readAsDataURL(audioBlob);
+
+            reader.onloadend = async function () {
+                // Get the data URL of the audio sample
+                const audioDataUrl = reader.result;
+
+                // Call the websim TTS API with the voice sample
+                try {
+                    const result = await websim.textToSpeech({
+                        text: textToClone,
+                        voice_sample: audioDataUrl
+                    });
+
+                    // Update the audio element with the cloned speech
+                    elements.cloneAudio.src = result.url;
+                    elements.cloneResult.classList.remove('hidden');
+                    elements.cloneAudio.play();
+                } catch (apiError) {
+                    console.error('API Error:', apiError);
+                    alert('Error generating cloned speech. Please try a different audio sample.');
+                } finally {
+                    elements.cloneButton.textContent = 'Generate Cloned Speech';
+                    elements.cloneButton.disabled = false;
+                }
+            };
+
+            reader.onerror = function () {
+                throw new Error('Failed to process audio sample');
+            };
         } catch (error) {
             console.error('Error generating cloned speech:', error);
-            alert('An error occurred while generating cloned speech. Please try again.');
+            alert('An error occurred while generating cloned speech: ' + error.message);
             elements.cloneButton.textContent = 'Generate Cloned Speech';
             elements.cloneButton.disabled = false;
         }
     });
-}
 
-// Initialize the app when the document is loaded
-document.addEventListener('DOMContentLoaded', init);
+    init();
+});
