@@ -1,0 +1,155 @@
+/* Voice Recording Section Styles */
+#voice-recording {
+    background-color: #f5f9ff;
+    border-radius: 12px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.controls {
+    margin: 15px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+#record-button {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#record-button:hover {
+    background-color: #c0392b;
+}
+
+#record-button.recording {
+    animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+#recording-timer {
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+.sample-playback {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #ddd;
+}
+
+#clone-text-input {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    border: 1px solid #ddd;
+    min-height: 60px;
+    font-family: inherit;
+}
+
+#clone-button {
+    background-color: #3498db;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#clone-button:hover:not(:disabled) {
+    background-color: #2980b9;
+}
+
+#clone-button:disabled {
+    background-color: #95a5a6;
+    cursor: not-allowed;
+}
+
+#clone-result {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px dashed #ddd;
+}
+
+.hidden {
+    display: none;
+}
+
+/* Tabs styling */
+.input-method-tabs {
+    display: flex;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+}
+
+.tab-button {
+    background-color: transparent;
+    border: none;
+    padding: 10px 20px;
+    margin-right: 5px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+}
+
+.tab-button.active {
+    border-bottom: 3px solid #3498db;
+    font-weight: bold;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* File upload styling */
+.file-input {
+    width: 0.1px;
+    height: 0.1px;
+    opacity: 0;
+    overflow: hidden;
+    position: absolute;
+    z-index: -1;
+}
+
+.file-input-label {
+    display: inline-block;
+    background-color: #3498db;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+    text-align: center;
+    margin-bottom: 10px;
+}
+
+.file-input-label:hover {
+    background-color: #2980b9;
+}
+
+.file-instructions {
+    font-size: 0.9em;
+    color: #7f8c8d;
+    margin: 5px 0;
+}
+
+#file-name-display {
+    margin-top: 10px;
+    font-style: italic;
+}
